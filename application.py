@@ -67,7 +67,6 @@ def history():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     """Log user in"""
-
     # Forget any user_id
     session.clear()
 
@@ -122,9 +121,18 @@ def quote():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     """Register user"""
-    print('test')
+    if request.method == "POST":
+    # print(request.form.get("username"))
+        if not request.form.get("username"):
+            return apology("must provide username", 403)
+        if not request.form.get("password"):
+            return apology("must provide password", 403)
+        elif request.form.get("password") != request.form.get("re-password"):
+            return apology("passwords must match", 403)
+        # username = request.form['username']
+        # print(username)
     return render_template('register.html')
-    request.form.get("username")
+    # request.form.get("username")
     # return apology("TODO")
 
 
