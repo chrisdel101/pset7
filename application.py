@@ -50,18 +50,18 @@ def index():
     return apology("TODO")
 
 
-@app.route("/buy", methods=["GET", "POST"])
-@login_required
-def buy():
-    """Buy shares of stock"""
-    return apology("TODO")
+# @app.route("/buy", methods=["GET", "POST"])
+# @login_required
+# def buy():
+#     """Buy shares of stock"""
+#     return apology("TODO")
 
 
-@app.route("/history")
-@login_required
-def history():
-    """Show history of transactions"""
-    return apology("TODO")
+# @app.route("/history")
+# @login_required
+# def history():
+#     """Show history of transactions"""
+#     return apology("TODO")
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -100,47 +100,59 @@ def login():
         return render_template("login.html")
 
 
-@app.route("/logout")
-def logout():
-    """Log user out"""
+# @app.route("/logout")
+# def logout():
+#     """Log user out"""
 
-    # Forget any user_id
-    session.clear()
+#     # Forget any user_id
+#     session.clear()
 
-    # Redirect user to login form
-    return redirect("/")
+#     # Redirect user to login form
+#     return redirect("/")
 
 
-@app.route("/quote", methods=["GET", "POST"])
-@login_required
-def quote():
-    """Get stock quote."""
-    return apology("TODO")
+# @app.route("/quote", methods=["GET", "POST"])
+# @login_required
+# def quote():
+#     """Get stock quote."""
+#     return apology("TODO")
 
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
     """Register user"""
+    # user GET, then just render template
     if request.method == "POST":
-    # print(request.form.get("username"))
-        if not request.form.get("username"):
-            return apology("must provide username", 403)
-        if not request.form.get("password"):
-            return apology("must provide password", 403)
-        elif request.form.get("password") != request.form.get("re-password"):
-            return apology("passwords must match", 403)
-        # username = request.form['username']
+        # if not request.form.get("username"):
+        #     return apology("must provide username", 403)
+        # if not request.form.get("password"):
+        #     return apology("must provide password", 403)
+        # elif request.form.get("password") != request.form.get("re-password"):
+        #     return apology("passwords must match", 403)
+
+        # # generate password hash
+        username = request.form.get("username")
+        hash = generate_password_hash(request.form.get("password"),method='pbkdf2:sha256', salt_length=8)
         # print(username)
-    return render_template('register.html')
-    # request.form.get("username")
-    # return apology("TODO")
+        # print(hash)
+        # return render_template('register.html')
+        # print(db.execute("SELECT * FROM users"))
+        # return render_template('register.html')
+        db.execute("INSERT INTO users (username,hash) VALUES (:username, :hash)", username = username, hash = hash)
+        print('okay')
+        return render_template("register.html")
+        # db.execute("SELECT * FROM users")
+        # db.execute(“INSERT INTO users (username, hash) VALUES (:username, :hash)”, username = request.form.get("username"), hash = generate_password_hash(request.form.get("password"),method="pbkdf2:sha256", salt_length=8))
+        # db.execute("INSERT INTO users (username, hash)  VALUES(:username, :hash)", username=request.form.get("username"), hash=generate_password_hash(request.form.get("password"),method='pbkdf2:sha256', salt_length=8))
+    if request.method == "GET":
+        return render_template('register.html')
 
 
-@app.route("/sell", methods=["GET", "POST"])
-@login_required
-def sell():
-    """Sell shares of stock"""
-    return apology("TODO")
+# @app.route("/sell", methods=["GET", "POST"])
+# @login_required
+# def sell():
+#     """Sell shares of stock"""
+#     return apology("TODO")
 
 
 def errorhandler(e):
