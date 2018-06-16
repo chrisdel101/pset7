@@ -54,7 +54,32 @@ def index():
 @login_required
 def buy():
     """Buy shares of stock"""
-    return render_template(apology.html)
+    if request.method == 'POST':
+        symbol = request.form.get("symbol")
+        shares = request.form.get("shares")
+        shares = int(shares)
+        print(f"symbol: {symbol}")
+        print(f"shares: {shares}")
+        look_up = lookup(symbol)
+        price = look_up['price']
+        print(f"lookup: {look_up}")
+        print(f"price: {price}")
+        # return render_template("buy.html", stock=look_up, symbol=symbol, method=request.method)
+        if look_up == None:
+            print('Lookup value is none: must retry')
+            # "quote.html", quote=result, method=request.method
+            return render_template("buy.html", stock=look_up, symbol=symbol, method=request.method)
+        elif look_up != None:
+            print(session)
+            # user_id = db.execute("SELECT id FROM users WHERE (:username)=username", username=username)
+            db.execute("SELECT cash FROM users WHERE (:id)=id", id=session['user_id'])
+            return render_template("buy.html", stock=look_up, symbol=symbol, method=request.method)
+
+        # return render_template("buy.html")
+    elif request.method == "GET":
+        return render_template("buy.html",method=request.method)
+    else:
+        return apology("Request must be a GET of a POST", 400)
 
 
 @app.route("/history")
@@ -91,7 +116,7 @@ def login():
 
         # Remember which user has logged in
         session["user_id"] = rows[0]["id"]
-        print(session)
+        print('login successful')
 
         # Redirect user to home page
         return redirect("/")
