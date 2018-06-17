@@ -1,4 +1,5 @@
 import os
+import datetime
 
 from cs50 import SQL
 from flask import Flask, flash, redirect, render_template, request, session
@@ -53,6 +54,7 @@ def index():
 @app.route("/buy", methods=["GET", "POST"])
 @login_required
 def buy():
+    user_id = session['user_id']
     """Buy shares of stock"""
     if request.method == 'POST':
         symbol = request.form.get("symbol")
@@ -71,8 +73,46 @@ def buy():
             return render_template("buy.html", stock=look_up, symbol=symbol, method=request.method)
         elif look_up != None:
             print(session)
-            # user_id = db.execute("SELECT id FROM users WHERE (:username)=username", username=username)
-            db.execute("SELECT cash FROM users WHERE (:id)=id", id=session['user_id'])
+            # get users cash
+            cash = db.execute("SELECT cash FROM users WHERE (:id)=id", id=session['user_id'])
+            print(cash[0])
+            cash = cash[0]['cash']
+            print(f"cash: {cash}")
+            # calculate total price of shares
+            sharesPrice = price * shares
+            # see if user has the money
+            calcuate = cash - sharesPrice
+            if calcuate >= 0:
+                print('purchase approved')
+                # ALLOCATE ID
+                # get last purchase ID, and add one to it for this purchase
+                last_purchase_id = db.execute("SELECT MAX(purchase_id) from purchases")
+                # extract from list and dict
+                last_purchase_id = last_purchase_id[0]['MAX(purchase_id)']
+                # add one to get id for this purchase
+                current_purchase_id = last_purchase_id + 1
+
+                current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+                print(f"date: {current_date}")
+                # DB LOGIC
+                print(f"shares: {shares}")
+                print(f"symbol: {symbol}")
+                print(f"value: {sharesPrice}")
+                print(f"user_id: {user_id}")
+                print(f"date: {current_date}")
+                print(f"purchase_id: {current_purchase_id}")
+                # add = db.execute("INSERT INTO purchases (user_id, shares,symbol,value,purchase_id,date) VALUES (:shares, :symbol, :user_id, :value, :purchase_id, :date)", user_id=user_id, shares=shares,symbol=symbol,value=sharesPrice, purchase_id=current_purchase_id, date=current_date)
+                db.execute("INSERT INTO purchases (user_id, shares,symbol,purchase_id, value,date) VALUES (:user_id, :shares, :symbol, :purchase_id, :value,:date)", user_id=user_id, shares=shares, symbol=symbol,purchase_id=current_purchase_id, value=sharesPrice,date=current_date)
+
+
+
+
+
+                return render_template("buy.html", stock=look_up, symbol=symbol, method=request.method)
+            # buy and add to DB
+                # db.execute("INSERT ")
+            else:
+                print("not enough dough")
             return render_template("buy.html", stock=look_up, symbol=symbol, method=request.method)
 
         # return render_template("buy.html")
