@@ -103,9 +103,9 @@ def buy():
                 print(f"date: {current_date}")
                 print(f"purchase_id: {current_purchase_id}")
                 # add = db.execute("INSERT INTO purchases (user_id, shares,symbol,value,purchase_id,date) VALUES (:shares, :symbol, :user_id, :value, :purchase_id, :date)", user_id=user_id, shares=shares,symbol=symbol,value=sharesPrice, purchase_id=current_purchase_id, date=current_date)
-                # db.execute("INSERT INTO purchases (user_id, shares,symbol,purchase_id, value,date) VALUES (:user_id, :shares, :symbol, :purchase_id, :value,:date)", user_id=user_id, shares=shares, symbol=symbol,purchase_id=current_purchase_id, value=sharesPrice,date=current_date)
+                db.execute("INSERT INTO purchases (user_id, shares,symbol,purchase_id, value,date) VALUES (:user_id, :shares, :symbol, :purchase_id, :value,:date)", user_id=user_id, shares=shares, symbol=symbol,purchase_id=current_purchase_id, value=sharesPrice,date=current_date)
 
-                # db.execute("UPDATE users SET cash=(:cash) WHERE id=(:id)", cash=cash_after_shares,id=user_id)
+                db.execute("UPDATE users SET cash=(:cash) WHERE id=(:id)", cash=cash_after_shares,id=user_id)
                 return render_template("buy.html", stock=look_up, symbol=symbol, method=request.method)
             # buy and add to DB
                 # db.execute("INSERT ")
