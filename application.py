@@ -43,11 +43,19 @@ Session(app)
 # Configure CS50 Library to use SQLite database
 db = SQL("sqlite:///finance.db")
 
+@app.route("/lookup")
+def lookup_check():
+    look_up1 = lookup('GOOG')
+    look_up2 = lookup('GOGO')
+    print(look_up1)
+    print(look_up2)
 
 @app.route("/")
 @login_required
 def index():
     """Show portfolio of stocks"""
+    user_id = session['user_id']
+    db.execute("SELECT symbol WHERE user_id=(:user_id)", user_id=user_id)
     return render_template("index.html")
 
 
@@ -60,20 +68,16 @@ def buy():
         symbol = request.form.get("symbol")
         shares = request.form.get("shares")
         shares = int(shares)
-        print(f"symbol: {symbol}")
-        print(f"shares: {shares}")
         look_up = lookup(symbol)
         print(f"lookup:{look_up}")
-        price = look_up['price']
-        print(f"lookup: {look_up}")
-        print(f"price: {price}")
-        # return render_template("buy.html", stock=look_up, symbol=symbol, method=request.method)
         if look_up == None:
             print('Lookup value is none: must retry')
             # "quote.html", quote=result, method=request.method
             return render_template("buy.html", stock=look_up, symbol=symbol, method=request.method)
+        # return render_template("buy.html", stock=look_up, symbol=symbol, method=request.method)
         elif look_up != None:
-            print(session)
+            price = look_up['price']
+            print(f"price: {price}", type(price))
             # get users cash
             cash = db.execute("SELECT cash FROM users WHERE (:id)=id", id=user_id)
             print(cash[0])
@@ -102,9 +106,9 @@ def buy():
                 print(f"user_id: {user_id}")
                 print(f"date: {current_date}")
                 print(f"purchase_id: {current_purchase_id}")
-                # add = db.execute("INSERT INTO purchases (user_id, shares,symbol,value,purchase_id,date) VALUES (:shares, :symbol, :user_id, :value, :purchase_id, :date)", user_id=user_id, shares=shares,symbol=symbol,value=sharesPrice, purchase_id=current_purchase_id, date=current_date)
-                db.execute("INSERT INTO purchases (user_id, shares,symbol,purchase_id, value,date) VALUES (:user_id, :shares, :symbol, :purchase_id, :value,:date)", user_id=user_id, shares=shares, symbol=symbol,purchase_id=current_purchase_id, value=sharesPrice,date=current_date)
-
+                # BUY - add values into purchases table
+                db.execute("INSERT INTO purchases (user_id, shares, symbol, purchase_id, value, date, share_value) VALUES (:user_id, :shares, :symbol, :purchase_id, :value,:date, :share_value)", user_id=user_id, shares=shares, symbol=symbol,purchase_id=current_purchase_id, value=sharesPrice,date=current_date, share_value=price)
+                # update user cash after purchase
                 db.execute("UPDATE users SET cash=(:cash) WHERE id=(:id)", cash=cash_after_shares,id=user_id)
                 return render_template("buy.html", stock=look_up, symbol=symbol, method=request.method)
             # buy and add to DB

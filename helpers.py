@@ -69,6 +69,12 @@ def lookup(symbol):
         except:
             return None
 
+        # if symbol == 'GOOG':
+        #     return {
+        #     "price": 100,
+        #     "symbol": 'GOOG'
+        # }
+
         # Return stock's name (as a str), price (as a float), and (uppercased) symbol (as a str)
         return {
             "price": price,
