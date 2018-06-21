@@ -7,26 +7,42 @@
 {% block main %}
 <main class="index-page">
   <div class="container">
-    <div class="row">
+     <div class="row">
       <div class="col-sm-2">
-        Symbol
+        <h6>Symbol</h6>
       </div>
       <div class="col-sm-2">
-        Name
+        <h6>Name</h6>
       </div>
       <div class="col-sm-2">
-        Shares
+        <h6>Shares</h6>
       </div>
       <div class="col-sm-2">
-        Price
+        <h6>Price</h6>
       </div>
       <div class="col-sm-2">
-        TOTAL
+        <h6>Total</h6>
       </div>
     </div> <!-- row -->
+    {% for datum in data %}
     <div class="row">
-
-    </div>
+      <div class="col-sm-2">
+        {{ datum['symbol'] }}
+      </div>
+      <div class="col-sm-2">
+       TBA
+      </div>
+      <div class="col-sm-2">
+        {{ datum['shares'] }}
+      </div>
+      <div class="col-sm-2">
+        {{ datum['share_value'] }}
+      </div>
+      <div class="col-sm-2">
+        {{ datum['value'] }}
+      </div>
+    </div> <!-- row -->
+    {% endfor %}
   </div>
 </main>
 {% endblock %}

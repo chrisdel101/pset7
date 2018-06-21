@@ -55,8 +55,15 @@ def lookup_check():
 def index():
     """Show portfolio of stocks"""
     user_id = session['user_id']
-    db.execute("SELECT symbol WHERE user_id=(:user_id)", user_id=user_id)
-    return render_template("index.html")
+    data = db.execute("SELECT symbol, shares, share_value, value FROM purchases WHERE user_id=(:user_id)", user_id=user_id)
+    symbols = db.execute("SELECT symbol FROM purchases WHERE user_id=(:user_id)", user_id=user_id)
+    shares = db.execute("SELECT shares FROM purchases WHERE user_id=(:user_id)", user_id=user_id)
+    share_values = db.execute("SELECT share_value FROM purchases WHERE user_id=(:user_id)", user_id=user_id)
+    values = db.execute("SELECT value FROM purchases WHERE user_id=(:user_id)", user_id=user_id)
+    # print(symbols,shares,share_values,values)
+    print(data)
+    # return render_template("index.html", symbols=symbols, shares=shares, value=values, share_value=share_values)
+    return render_template("index.html", data=data)
 
 
 @app.route("/buy", methods=["GET", "POST"])
