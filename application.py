@@ -120,7 +120,7 @@ def buy():
                 # not already in table
                 print(f"check: {check}")
                 if check == []:
-                    print("Add to Purchases only")
+                    print("Add to Purchases / add to assets")
                     # INSERT - insert new row with all purchase table
                     db.execute("INSERT INTO purchases (user_id, shares, symbol, purchase_id, value, date, share_value) VALUES (:user_id, :shares, :symbol, :purchase_id, :value,:date, :share_value)", user_id=user_id, shares=shares, symbol=symbol,purchase_id=current_purchase_id, value=sharesValue,date=current_date, share_value=price)
                     # INSERT - insert new row into assets table
@@ -129,19 +129,23 @@ def buy():
                     db.execute("UPDATE users SET cash=(:cash) WHERE id=(:user_id)", cash=cash_after_shares,user_id=user_id)
                     return render_template("buy.html", stock=look_up, symbol=symbol, method=request.method)
                 else:
-                    #UPDATE - update the share
-                    print('Add to purchase and Assets')
+                    print('Add to purchase / update Assets')
+                     # INSERT - insert new row into purchase table
+                    db.execute("INSERT INTO purchases (user_id, shares, symbol, purchase_id, value, date, share_value) VALUES (:user_id, :shares, :symbol, :purchase_id, :value,:date, :share_value)", user_id=user_id, shares=shares, symbol=symbol,purchase_id=current_purchase_id, value=sharesValue,date=current_date, share_value=price)
+                    # SELECT - current valuees from assets
                     # get shares and value already there
                     currentValues = db.execute("SELECT shares, total FROM assets WHERE user_id=(:user_id)", user_id=user_id)
+                    #UPDATE - update the assets table
                     # returns a list - get dict out of list
                     currentValues = currentValues[0]
-
                     currentShares = currentValues['shares']
                     currentTotal =  currentValues['total']
                     # add new vals to old ones
                     newShares = currentShares + shares
                     newTotal  = currentTotal + sharesValue
                     db.execute("UPDATE assets SET shares=(:shares), total=(:total)", shares=newShares, total=newTotal)
+                    # UPDATE user cash after purchase
+                    db.execute("UPDATE users SET cash=(:cash) WHERE id=(:user_id)", cash=cash_after_shares,user_id=user_id)
 
                     return render_template("buy.html", stock=look_up, symbol=symbol, method=request.method)
 
