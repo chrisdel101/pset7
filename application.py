@@ -56,12 +56,13 @@ def index():
     """Show portfolio of stocks"""
     user_id = session['user_id']
     data = db.execute("SELECT symbol, shares, share_value, value FROM purchases WHERE user_id=(:user_id)", user_id=user_id)
-    symbols = db.execute("SELECT symbol FROM purchases WHERE user_id=(:user_id)", user_id=user_id)
-    shares = db.execute("SELECT shares FROM purchases WHERE user_id=(:user_id)", user_id=user_id)
-    share_values = db.execute("SELECT share_value FROM purchases WHERE user_id=(:user_id)", user_id=user_id)
-    values = db.execute("SELECT value FROM purchases WHERE user_id=(:user_id)", user_id=user_id)
-    # print(symbols,shares,share_values,values)
-    print(data)
+    check = db.execute("SELECT symbol FROM purchases WHERE symbol='GOOG'")
+    if(check == []):
+        print('true')
+    check1 = db.execute("SELECT symbol FROM purchases WHERE symbol='goog'")
+    print(check)
+    print(check1)
+    # print(data)
     # return render_template("index.html", symbols=symbols, shares=shares, value=values, share_value=share_values)
     return render_template("index.html", data=data)
 
@@ -91,9 +92,9 @@ def buy():
             cash = cash[0]['cash']
             print(f"cash: {cash}")
             # calculate total price of shares
-            sharesPrice = price * shares
+            sharesValue = price * shares
             # see if user has the money
-            cash_after_shares = cash - sharesPrice
+            cash_after_shares = cash - sharesValue
             if cash_after_shares >= 0:
                 print('purchase approved')
                 # ALLOCATE ID
@@ -109,15 +110,42 @@ def buy():
                 # DB LOGIC
                 print(f"shares: {shares}")
                 print(f"symbol: {symbol}")
-                print(f"value: {sharesPrice}")
+                print(f"price: {price}")
+                print(f"sharesValue: {sharesValue}")
                 print(f"user_id: {user_id}")
                 print(f"date: {current_date}")
                 print(f"purchase_id: {current_purchase_id}")
-                # BUY - add values into purchases table
-                db.execute("INSERT INTO purchases (user_id, shares, symbol, purchase_id, value, date, share_value) VALUES (:user_id, :shares, :symbol, :purchase_id, :value,:date, :share_value)", user_id=user_id, shares=shares, symbol=symbol,purchase_id=current_purchase_id, value=sharesPrice,date=current_date, share_value=price)
-                # update user cash after purchase
-                db.execute("UPDATE users SET cash=(:cash) WHERE id=(:id)", cash=cash_after_shares,id=user_id)
-                return render_template("buy.html", stock=look_up, symbol=symbol, method=request.method)
+                # check if user has that stock already
+                check = db.execute("SELECT symbol FROM purchases WHERE symbol=(:symbol)", symbol=symbol)
+                # not already in table
+                print(f"check: {check}")
+                if check == []:
+                    print("Add to Purchases only")
+                    # INSERT - insert new row with all purchase table
+                    db.execute("INSERT INTO purchases (user_id, shares, symbol, purchase_id, value, date, share_value) VALUES (:user_id, :shares, :symbol, :purchase_id, :value,:date, :share_value)", user_id=user_id, shares=shares, symbol=symbol,purchase_id=current_purchase_id, value=sharesValue,date=current_date, share_value=price)
+                    # INSERT - insert new row into assets table
+                    db.execute("INSERT INTO assets (user_id, symbol, shares, total) VALUES (:user_id, :symbol, :shares, :value)", user_id=user_id, shares=shares, symbol=symbol, value=sharesValue)
+                    # update user cash after purchase
+                    db.execute("UPDATE users SET cash=(:cash) WHERE id=(:user_id)", cash=cash_after_shares,user_id=user_id)
+                    return render_template("buy.html", stock=look_up, symbol=symbol, method=request.method)
+                else:
+                    #UPDATE - update the share
+                    print('Add to purchase and Assets')
+                    # get shares and value already there
+                    currentValues = db.execute("SELECT shares, total FROM assets WHERE user_id=(:user_id)", user_id=user_id)
+                    # returns a list - get dict out of list
+                    currentValues = currentValues[0]
+
+                    currentShares = currentValues['shares']
+                    currentTotal =  currentValues['total']
+                    # add new vals to old ones
+                    newShares = currentShares + shares
+                    newTotal  = currentTotal + sharesValue
+                    db.execute("UPDATE assets SET shares=(:shares), total=(:total)", shares=newShares, total=newTotal)
+
+                    return render_template("buy.html", stock=look_up, symbol=symbol, method=request.method)
+
+
             # buy and add to DB
                 # db.execute("INSERT ")
             else:
