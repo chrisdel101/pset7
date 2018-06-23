@@ -73,7 +73,7 @@ def index():
 # returns list of assets and cash
 def assests_cash(user_id):
     # select all assets
-    assetData = db.execute("SELECT * FROM assets")
+    assetData = db.execute("SELECT * FROM assets WHERE user_id=(:user_id)", user_id=user_id)
     # select cash
     cash = db.execute("SELECT cash FROM users WHERE (:id)=id", id=user_id)
     # get cash from dict
@@ -89,11 +89,12 @@ def assests_cash(user_id):
 def buy():
     user_id = session['user_id']
     # set blank variable
-    last_purchase_id = ""
+    # last_purchase_id = ""
     """Buy shares of stock"""
     if request.method == 'POST':
         # get form values
         symbol = request.form.get("symbol")
+        symbol = symbol.upper()
         shares = request.form.get("shares")
         shares = int(shares)
         # get API INFO
@@ -267,6 +268,7 @@ def quote():
     """Get stock quote."""
     if request.method == 'POST':
        symbol = request.form.get("quote")
+       symbol = symbol.upper()
        result = lookup(symbol)
        print(result)
        return render_template("quote.html", quote=result, method=request.method)
@@ -304,12 +306,45 @@ def register():
     else:
         return "Reques type not validflas"
 
+# - query for list of stocks
+# - show list of all stocks and shares
 
-# @app.route("/sell", methods=["GET", "POST"])
-# @login_required
-# def sell():
-#     """Sell shares of stock"""
-#     return apology("TODO")
+    """Sell shares of stock"""
+@app.route("/sell", methods=["GET", "POST"])
+@login_required
+def sell():
+    user_id = session['user_id']
+    # get value in assets
+    assets = db.execute("SELECT * FROM assets WHERE user_id=(:user_id)", user_id=user_id)
+    if request.method == 'GET':
+        return render_template("sell.html", data=assets)
+    elif request.method == 'POST':
+        # get input symbol
+        symbol = request.form.get("symbol")
+        # get input shares to sell
+        shares_to_sell = request.form.get("shares")
+        # input must be a string
+        if type(shares_to_sell) != str:
+            # FLASH
+            print("Error: Input is invalid or empty")
+            return render_template("sell.html", data=assets)
+        else:
+            shares_to_sell = int(shares_to_sell)
+            # get shares cuurent in table
+            sharesData = db.execute("SELECT shares FROM assets WHERE symbol=(:symbol) AND user_id=(:user_id)", user_id=user_id, symbol=symbol)
+            sharesData = sharesData[0]['shares']
+            # subtract the amount sold
+            new_shares_amount = sharesData - shares_to_sell
+            if new_shares_amount < 0:
+                ##FLASH MESSAGE
+                print("Don't have that many shares")
+                print(assets)
+                return render_template("sell.html", data=assets)
+            # else:
+
+
+            return render_template("sell.html")
+    return apology("TODO")
 
 
 def errorhandler(e):
