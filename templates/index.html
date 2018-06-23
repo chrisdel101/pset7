@@ -7,42 +7,33 @@
 {% block main %}
 <main class="index-page">
   <div class="container">
-     <div class="row">
-      <div class="col-sm-2">
-        <h6>Symbol</h6>
-      </div>
-      <div class="col-sm-2">
-        <h6>Name</h6>
-      </div>
-      <div class="col-sm-2">
-        <h6>Shares</h6>
-      </div>
-      <div class="col-sm-2">
-        <h6>Value at Purchase</h6>
-      </div>
-      <div class="col-sm-2">
-        <h6>Total</h6>
-      </div>
-    </div> <!-- row -->
-    {% for datum in data %}
-    <div class="row">
-      <div class="col-sm-2">
-        {{ datum['symbol'] }}
-      </div>
-      <div class="col-sm-2">
-       TBA
-      </div>
-      <div class="col-sm-2">
-        {{ datum['shares'] }}
-      </div>
-      <div class="col-sm-2">
-        {{ datum['share_value'] }}
-      </div>
-      <div class="col-sm-2">
-        {{ datum['value'] }}
-      </div>
-    </div> <!-- row -->
-    {% endfor %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Symbol</th>
+          <th scope="col">Name</th>
+          <th scope="col">Shares</th>
+          <th scope="col">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for datum in data %}
+        <tr>
+          <td>{{ datum['symbol'] }}</td>
+          <td>TBA</td>
+          <td>{{ datum['shares'] }}</td>
+          <td>{{ datum['total'] }}</td>
+          </tr>
+        {% endfor %}
+        <tr class="last-row">
+          <td><strong>CASH</strong></td>
+          <td></td>
+          <td></td>
+          <td><strong>{{ cash }}</strong></td>
+          </tr>
+      </tbody>
+    </table>
+
   </div>
 </main>
 {% endblock %}
