@@ -62,9 +62,13 @@ def index():
     # cash = str(round(cash, 2))
 
     data = assests_cash(user_id)
-    print(data)
     assetData = data[0]
+    # loop through data and round all the totals
+    for datum in assetData:
+        datum['total'] = round(datum['total'],2)
+    print(assetData)
     cash = data[1]
+    cash = round(cash, 2)
 
     return render_template("index.html", data=assetData, cash=cash)
     # return render_template("index.html")
@@ -79,7 +83,7 @@ def assests_cash(user_id):
     # get cash from dict
     cash = cash[0]['cash']
     # round cash down
-    cash = str(round(cash, 2))
+    # cash = round(cash, 2)
     return [assetData, cash]
 
 
@@ -251,15 +255,15 @@ def login():
         return render_template("login.html")
 
 
-# @app.route("/logout")
-# def logout():
-#     """Log user out"""
+@app.route("/logout")
+def logout():
+    """Log user out"""
 
-#     # Forget any user_id
-#     session.clear()
+    # Forget any user_id
+    session.clear()
 
-#     # Redirect user to login form
-#     return redirect("/")
+    # Redirect user to login form
+    return redirect("/")
 
 
 @app.route("/quote", methods=["GET", "POST"])
@@ -323,25 +327,43 @@ def sell():
         symbol = request.form.get("symbol")
         # get input shares to sell
         shares_to_sell = request.form.get("shares")
+        print(f"symbol:{symbol}")
+        print(f"shares_to_sell:{shares_to_sell}")
         # input must be a string
         if type(shares_to_sell) != str:
             # FLASH
             print("Error: Input is invalid or empty")
+            # rerender sell.html
             return render_template("sell.html", data=assets)
         else:
+            # convert to int
             shares_to_sell = int(shares_to_sell)
             # get shares cuurent in table
             sharesData = db.execute("SELECT shares FROM assets WHERE symbol=(:symbol) AND user_id=(:user_id)", user_id=user_id, symbol=symbol)
             sharesData = sharesData[0]['shares']
             # subtract the amount sold
             new_shares_amount = sharesData - shares_to_sell
+            print(f"new_shares_amount:{new_shares_amount}")
+            # lookup share value at API to get price
+            look_up = lookup(symbol)
+            look_up_price = look_up['price']
+            selling_cash = look_up_price * shares_to_sell
+            print(f"selling_cash:{selling_cash}")
             if new_shares_amount < 0:
                 ##FLASH MESSAGE
                 print("Don't have that many shares")
-                print(assets)
                 return render_template("sell.html", data=assets)
-            # else:
-
+            else:
+                # change share number in table
+                db.execute("UPDATE assets SET shares=(:new_shares_amount) WHERE user_id=(:user_id)", new_shares_amount=new_shares_amount, user_id=user_id)
+                # get current cash
+                current_cash = db.execute("SELECT cash FROM users WHERE id=(:user_id)", user_id=user_id)
+                current_cash = current_cash[0]['cash']
+                # perform addition
+                updated_cash = current_cash + selling_cash
+                # update cash
+                db.execute("UPDATE users SET cash=(:updated_cash) WHERE id=(:user_id)", updated_cash=updated_cash, user_id=user_id)
+                return redirect(url_for("index"))
 
             return render_template("sell.html")
     return apology("TODO")
