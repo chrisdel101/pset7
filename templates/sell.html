@@ -15,10 +15,14 @@
       </thead>
       <tbody>
         {% for datum in data %}
-        <tr>
-          <td>{{ datum['symbol'] }}</td>
-          <td>{{ datum['shares'] }}</td>
-          </tr>
+        <!--only display vals more than zero-->
+           {% if datum['shares'] > 0 %}
+            <tr>
+              <td>{{ datum['symbol'] }}</td>
+              <td>{{ datum['shares'] }}</td>
+            </tr>
+          {% endif %}
+
         {% endfor %}
       </tbody>
     </table>
@@ -28,7 +32,9 @@
       <div class=form-group>
         <select class="form-control" name="symbol">
           {% for datum in data %}
-            <option>{{ datum['symbol'] }}</option>
+           {% if datum['shares'] > 0 %}
+              <option>{{ datum['symbol'] }}</option>
+            {% endif %}
           {% endfor %}
         </select>
       </div>

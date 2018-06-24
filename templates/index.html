@@ -18,12 +18,14 @@
       </thead>
       <tbody>
         {% for datum in data %}
-        <tr>
-          <td>{{ datum['symbol'] }}</td>
-          <td>TBA</td>
-          <td>{{ datum['shares'] }}</td>
-          <td>{{ datum['total'] }}</td>
-          </tr>
+          {% if datum['shares'] > 0 %}
+          <tr>
+            <td>{{ datum['symbol'] }}</td>
+            <td>TBA</td>
+            <td>{{ datum['shares'] }}</td>
+            <td>{{ datum['total'] }}</td>
+            </tr>
+          {% endif %}
         {% endfor %}
         <tr class="last-row">
           <td><strong>CASH</strong></td>
