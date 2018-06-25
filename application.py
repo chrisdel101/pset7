@@ -12,7 +12,6 @@ from helpers import apology, login_required, lookup, usd
 
 TEMPLATES_AUTO_RELOAD = True
 
-
 # Ensure environment variable is set
 if not os.environ.get("API_KEY"):
     raise RuntimeError("API_KEY not set")
@@ -30,6 +29,7 @@ def after_request(response):
     response.headers["Expires"] = 0
     response.headers["Pragma"] = "no-cache"
     return response
+
 
 # Custom filter
 app.jinja_env.filters["usd"] = usd
@@ -154,10 +154,10 @@ def buy():
                         # returns a list - get dict out of list
                         currentValues = currentValues[0]
                         currentShares = currentValues['shares']
-                        currentTotal =  currentValues['total']
+                        currentTotal = currentValues['total']
                         # add new vals to old ones
                         newShares = currentShares + shares
-                        newTotal  = currentTotal + sharesValue
+                        newTotal = currentTotal + sharesValue
                         db.execute("UPDATE assets SET shares=(:shares), total=(:total) WHERE symbol=(:symbol) AND user_id=(:user_id)", shares=newShares, total=newTotal, symbol=symbol, user_id=user_id)
                         # UPDATE user cash after purchase
                         db.execute("UPDATE users SET cash=(:cash) WHERE id=(:user_id)", cash=cash_after_shares,user_id=user_id)
@@ -174,7 +174,6 @@ def buy():
         return render_template("buy.html", method=request.method)
     else:
         return apology("Request must be a GET or a POST", 400)
-
 
 
 """Show history of transactions"""
@@ -255,13 +254,13 @@ def quote():
             symbol = symbol.upper()
             result = lookup(symbol)
             if result == None:
-               return apology("Not a valid ticker symbol.",400)
+                return apology("Not a valid ticker symbol.", 400)
             else:
                 # run price through usd function
                 result['price'] = usd(result['price'])
                 return render_template("quote.html", quote=result, method=request.method)
     elif request.method == 'GET':
-        return render_template("quote.html",method=request.method)
+        return render_template("quote.html", method=request.method)
 
 
 """Register user"""
@@ -278,12 +277,12 @@ def register():
 
         # # generate password hash
         username = request.form.get("username")
-        hash = generate_password_hash(request.form.get("password"),method='pbkdf2:sha256', salt_length=8)
+        hash = generate_password_hash(request.form.get("password"), method='pbkdf2:sha256', salt_length=8)
         username_query = db.execute("SELECT username FROM users WHERE username=(:username)", username=username)
         if username_query != []:
             return apology("That username already exists. Choose another.", 400)
 
-        db.execute("INSERT INTO users (username,hash) VALUES (:username, :hash)", username = username, hash = hash)
+        db.execute("INSERT INTO users (username,hash) VALUES (:username, :hash)", username=username, hash=hash)
         user_id = db.execute("SELECT id FROM users WHERE username=(:username)", username=username)
         session["user_id"] = user_id
 
