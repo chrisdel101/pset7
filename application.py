@@ -43,184 +43,161 @@ Session(app)
 # Configure CS50 Library to use SQLite database
 db = SQL("sqlite:///finance.db")
 
-@app.route("/lookup")
-def lookup_check():
-    look_up1 = lookup('GOOG')
-    look_up2 = lookup('GOGO')
-    print(look_up1)
-    print(look_up2)
 
+"""Show portfolio of stocks"""
 @app.route("/")
 @login_required
 def index():
-    """Show portfolio of stocks"""
     user_id = session['user_id']
-    # purchaseData = db.execute("SELECT symbol, shares, share_value, value FROM purchases WHERE user_id=(:user_id)", user_id=user_id)
-    # assetData = db.execute("SELECT * FROM assets")
-    # cash = db.execute("SELECT cash FROM users WHERE (:id)=id", id=user_id)
-    # cash = cash[0]['cash']
-    # cash = str(round(cash, 2))
-
-    data = assests_cash(user_id)
-    assetData = data[0]
-    # loop through data and round all the totals
-    for datum in assetData:
-        datum['total'] = round(datum['total'],2)
-    print(assetData)
-    cash = data[1]
-    cash = round(cash, 2)
-
-    return render_template("index.html", data=assetData, cash=cash)
-    # return render_template("index.html")
-
-
-# returns list of assets and cash
-def assests_cash(user_id):
     # select all assets
     assetData = db.execute("SELECT * FROM assets WHERE user_id=(:user_id)", user_id=user_id)
     # select cash
     cash = db.execute("SELECT cash FROM users WHERE id=(:id)", id=user_id)
-    # get cash from dict
     cash = cash[0]['cash']
-    # round cash down
-    # cash = round(cash, 2)
-    return [assetData, cash]
+    # loop through data and round all the totals
+    for datum in assetData:
+        # round and add usd
+        datum['total'] = usd(round(datum['total'],2))
+        # add usd
+    cash = usd(round(cash, 2))
+    return render_template("index.html", data=assetData, cash=cash)
 
 
+# return the purchase ID for buy and sell
+def purchaseID():
+    last_purchase_id = db.execute("SELECT MAX(purchase_id) from purchases")
+    # extract from list and dict
+    last_purchase_id = last_purchase_id[0]['MAX(purchase_id)']
+    # if no IDs, make first = 1
+    if last_purchase_id == None:
+        # print("no ids yet, set to one")
+        current_purchase_id = 1
+    # add one to get id for this purchase
+    elif last_purchase_id != None:
+        # print('ids there. increment')
+        current_purchase_id = last_purchase_id + 1
+        # print(f"last id:{last_purchase_id}")
+        # print(f"current id:{current_purchase_id}")
+    return current_purchase_id
 
+
+"""Buy shares of stock"""
 @app.route("/buy", methods=["GET", "POST"])
 @login_required
 def buy():
     user_id = session['user_id']
-    # set blank variable
-    # last_purchase_id = ""
-    """Buy shares of stock"""
     if request.method == 'POST':
-        # get form values
-        symbol = request.form.get("symbol")
-        symbol = symbol.upper()
-        shares = request.form.get("shares")
-        shares = int(shares)
-        # get API INFO
-        look_up = lookup(symbol)
-        print(f"lookup:{look_up}")
-        if look_up == None:
-            print('Lookup value is none: must retry')
-            # "quote.html", quote=result, method=request.method
-            return render_template("buy.html", stock=look_up, symbol=symbol, method=request.method)
-        # return render_template("buy.html", stock=look_up, symbol=symbol, method=request.method)
-        elif look_up != None:
-            price = look_up['price']
-            print(f"price: {price}", type(price))
-            # get users cash
-            cash = db.execute("SELECT cash FROM users WHERE (:id)=id", id=user_id)
-            cash = cash[0]['cash']
-            print(f"cash: {cash}")
-            # calculate total price of shares
-            sharesValue = price * shares
-            # see if user has the money
-            cash_after_shares = cash - sharesValue
-            if cash_after_shares >= 0:
-                print('purchase approved')
-                # ALLOCATE ID
-                # get last purchase ID, if 1 or more add one to it for this purchase
-                last_purchase_id = db.execute("SELECT MAX(purchase_id) from purchases")
-                # extract from list and dict
-                last_purchase_id = last_purchase_id[0]['MAX(purchase_id)']
-                # if no IDs, make first = 1
-                if last_purchase_id == None:
-                    print("no ids yet, set to one")
-                    current_purchase_id= 1
-                # add one to get id for this purchase
-                elif last_purchase_id != None:
-                    print('ids there. increment')
-                    current_purchase_id = last_purchase_id + 1
-                print(f"last id:{last_purchase_id}")
-                print(f"current id:{current_purchase_id}")
-                # get date
-                current_date = datetime.datetime.now().strftime("%Y-%m-%d")
-                print(f"date: {current_date}")
-                # DB LOGIC
-                print(f"shares: {shares}")
-                print(f"symbol: {symbol}")
-                print(f"price: {price}")
-                print(f"sharesValue: {sharesValue}")
-                print(f"user_id: {user_id}")
-                print(f"date: {current_date}")
-                print(f"purchase_id: {current_purchase_id}")
-                # CHECK if user has that stock already
-                check = db.execute("SELECT symbol FROM purchases WHERE symbol=(:symbol)", symbol=symbol)
-                # not already in table
-                print(f"check: {check}")
-                if check == []:
-                    print("Symbol not there. Add to both tables")
-                    # INSERT - insert new row with all purchase table
-                    db.execute("INSERT INTO purchases (user_id, shares, symbol, purchase_id, value, date, share_value) VALUES (:user_id, :shares, :symbol, :purchase_id, :value,:date, :share_value)", user_id=user_id, shares=shares, symbol=symbol,purchase_id=current_purchase_id, value=sharesValue,date=current_date, share_value=price)
-                    # INSERT - insert new row into assets table
-                    db.execute("INSERT INTO assets (user_id, symbol, shares, total) VALUES (:user_id, :symbol, :shares, :value)", user_id=user_id, shares=shares, symbol=symbol, value=sharesValue)
-                    # update user cash after purchase
-                    db.execute("UPDATE users SET cash=(:cash) WHERE id=(:user_id)", cash=cash_after_shares,user_id=user_id)
-
-                    # redirect to index
-                    return redirect(url_for("index"))
+        if not request.form.get("symbol") or not request.form.get('shares'):
+            return apology("Must fill in both fields.", 400)
+        else:
+            # get form values
+            symbol = request.form.get("symbol")
+            symbol = symbol.upper()
+            shares = request.form.get("shares")
+            # error handling - fraction/decimals return ValueError
+            try:
+                shares = int(shares)
+                if shares < 0:
+                    return apology("Cannot purchase negative shares.", 400)
+            except ValueError:
+                # print("Could not convert")
+                return apology("Only integers a can be entered.", 400)
+            # get API INFO
+            look_up = lookup(symbol)
+            # print(f"lookup:{look_up}")
+            if look_up == None:
+                return apology("Not a valid ticker symbol.", 400)
+            elif look_up != None:
+                price = look_up['price']
+                # get users cash
+                cash = db.execute("SELECT cash FROM users WHERE (:id)=id", id=user_id)
+                cash = cash[0]['cash']
+                # print(f"cash: {cash}")
+                # calculate total price of shares
+                sharesValue = price * shares
+                # see if user has the money
+                cash_after_shares = cash - sharesValue
+                if cash_after_shares >= 0:
+                    current_purchase_id = purchaseID()
+                    # get date
+                    current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    # print(f"date: {current_date}")
+                    # print(f"shares: {shares}")
+                    # print(f"symbol: {symbol}")
+                    # print(f"price: {price}")
+                    # print(f"sharesValue: {sharesValue}")
+                    # print(f"user_id: {user_id}")
+                    # print(f"date: {current_date}")
+                    # print(f"purchase_id: {current_purchase_id}")
+                    # CHECK if user has that stock already
+                    check = db.execute("SELECT symbol FROM purchases WHERE symbol=(:symbol)", symbol=symbol)
+                    # not already in table
+                    # print(f"check: {check}")
+                    if check == []:
+                        # print("Symbol not there. Add to both tables")
+                        # INSERT - insert new row with all purchase table
+                        db.execute("INSERT INTO purchases (user_id, shares, symbol, purchase_id, value, date, share_value, type) VALUES (:user_id, :shares, :symbol, :purchase_id, :value,:date, :share_value, :type)", user_id=user_id, shares=shares, symbol=symbol,purchase_id=current_purchase_id, value=sharesValue,date=current_date, share_value=price, type="buy")
+                        # INSERT - insert new row into assets table
+                        db.execute("INSERT INTO assets (user_id, symbol, shares, total) VALUES (:user_id, :symbol, :shares, :value)", user_id=user_id, shares=shares, symbol=symbol, value=sharesValue)
+                        # update user cash after purchase
+                        db.execute("UPDATE users SET cash=(:cash) WHERE id=(:user_id)", cash=cash_after_shares,user_id=user_id)
+                        # redirect to index
+                        return redirect(url_for("index"))
+                    else:
+                        # print('Symnol there. Add to purchase, update assets.')
+                         # INSERT - insert new row into purchase table
+                        db.execute("INSERT INTO purchases (user_id, shares, symbol, purchase_id, value, date, share_value, type) VALUES (:user_id, :shares, :symbol, :purchase_id, :value,:date, :share_value, :type)", user_id=user_id, shares=shares, symbol=symbol,purchase_id=current_purchase_id, value=sharesValue,date=current_date, share_value=price, type="buy")
+                        # SELECT - current valuees from assets
+                        # get shares and value already there
+                        currentValues = db.execute("SELECT shares, total FROM assets WHERE user_id=(:user_id)", user_id=user_id)
+                        #UPDATE - update the assets table
+                        # returns a list - get dict out of list
+                        currentValues = currentValues[0]
+                        currentShares = currentValues['shares']
+                        currentTotal =  currentValues['total']
+                        # add new vals to old ones
+                        newShares = currentShares + shares
+                        newTotal  = currentTotal + sharesValue
+                        db.execute("UPDATE assets SET shares=(:shares), total=(:total) WHERE symbol=(:symbol) AND user_id=(:user_id)", shares=newShares, total=newTotal, symbol=symbol, user_id=user_id)
+                        # UPDATE user cash after purchase
+                        db.execute("UPDATE users SET cash=(:cash) WHERE id=(:user_id)", cash=cash_after_shares,user_id=user_id)
+                        # redirect to index
+                        # FLASH
+                        return redirect(url_for("index"))
+                # purchase not approved
                 else:
-                    print('Symnol there. Add to purchase, update assets.')
-                     # INSERT - insert new row into purchase table
-                    db.execute("INSERT INTO purchases (user_id, shares, symbol, purchase_id, value, date, share_value) VALUES (:user_id, :shares, :symbol, :purchase_id, :value,:date, :share_value)", user_id=user_id, shares=shares, symbol=symbol,purchase_id=current_purchase_id, value=sharesValue,date=current_date, share_value=price)
-                    # SELECT - current valuees from assets
-                    # get shares and value already there
-                    currentValues = db.execute("SELECT shares, total FROM assets WHERE user_id=(:user_id)", user_id=user_id)
-                    #UPDATE - update the assets table
-                    # returns a list - get dict out of list
-                    currentValues = currentValues[0]
-                    currentShares = currentValues['shares']
-                    currentTotal =  currentValues['total']
-                    # add new vals to old ones
-                    newShares = currentShares + shares
-                    newTotal  = currentTotal + sharesValue
-                    db.execute("UPDATE assets SET shares=(:shares), total=(:total)", shares=newShares, total=newTotal)
-                    # UPDATE user cash after purchase
-                    db.execute("UPDATE users SET cash=(:cash) WHERE id=(:user_id)", cash=cash_after_shares,user_id=user_id)
-                    # redirect to index
+                    # FLASH
+                    # print("insufficient funds")
                     return redirect(url_for("index"))
-                    # return render_template("index.html", data=assets, cash=cash)
-            # purchase not approved
-            else:
-                print("insufficient funds")
-                return redirect(url_for("index"))
     # GET REQUEST
     elif request.method == "GET":
-        return render_template("buy.html",method=request.method)
+        return render_template("buy.html", method=request.method)
     else:
         return apology("Request must be a GET or a POST", 400)
 
-# if doesnt'exist
-# - insert into purchases
-# - insert into assets
-# - update cash
-# - select assets with index funtion
-# - put into index template
 
 
-# If does exist
-# - insert into purchases
-# - check assets
-# - perform math to update assets
-# - update assets
-# - update cash
-# - select assets with index functoin
-# - put into index template
-
+"""Show history of transactions"""
 @app.route("/history")
 @login_required
 def history():
-    """Show history of transactions"""
-    return apology("TODO")
+    user_id = session['user_id']
+    purchaseData = db.execute("SELECT symbol, shares, value, date FROM purchases WHERE user_id=(:user_id)", user_id=user_id)
+    # loop over shares vals to round numbers
+    for datum in purchaseData:
+        if(datum['value'] > 0):
+            datum['value'] = round(datum['value'],2)
+        else:
+            datum['value'] = datum['value']
+            # call usd
+        datum['value'] = usd(datum['value'])
+
+    return render_template("history.html", data=purchaseData)
 
 
+"""Log user in"""
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    """Log user in"""
     # Forget any user_id
     session.clear()
 
@@ -245,7 +222,7 @@ def login():
 
         # Remember which user has logged in
         session["user_id"] = rows[0]["id"]
-        print('login successful')
+        # print('login successful')
 
         # Redirect user to home page
         return redirect("/")
@@ -266,58 +243,63 @@ def logout():
     return redirect("/")
 
 
+"""Get stock quote."""
 @app.route("/quote", methods=["GET", "POST"])
 @login_required
 def quote():
-    """Get stock quote."""
     if request.method == 'POST':
-       symbol = request.form.get("quote")
-       symbol = symbol.upper()
-       result = lookup(symbol)
-       print(result)
-       return render_template("quote.html", quote=result, method=request.method)
+        if not request.form.get("symbol"):
+            return apology("Form cannot be blank.", 400)
+        else:
+            symbol = request.form.get("symbol")
+            symbol = symbol.upper()
+            result = lookup(symbol)
+            if result == None:
+               return apology("Not a valid ticker symbol.",400)
+            else:
+                # run price through usd function
+                result['price'] = usd(result['price'])
+                return render_template("quote.html", quote=result, method=request.method)
     elif request.method == 'GET':
         return render_template("quote.html",method=request.method)
 
 
+"""Register user"""
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    """Register user"""
     # user GET, then just render template
     if request.method == "POST":
         if not request.form.get("username"):
-            return apology("must provide username", 403)
+            return apology("must provide username", 400)
         if not request.form.get("password"):
-            return apology("must provide password", 403)
-        elif request.form.get("password") != request.form.get("re-password"):
-            return apology("passwords must match", 403)
+            return apology("must provide password", 400)
+        elif request.form.get("password") != request.form.get("confirmation"):
+            return apology("passwords must match", 400)
 
         # # generate password hash
         username = request.form.get("username")
         hash = generate_password_hash(request.form.get("password"),method='pbkdf2:sha256', salt_length=8)
+        username_query = db.execute("SELECT username FROM users WHERE username=(:username)", username=username)
+        if username_query != []:
+            return apology("That username already exists. Choose another.", 400)
 
         db.execute("INSERT INTO users (username,hash) VALUES (:username, :hash)", username = username, hash = hash)
-        user_id = db.execute("SELECT id FROM users WHERE (:username)=username", username=username)
+        user_id = db.execute("SELECT id FROM users WHERE username=(:username)", username=username)
         session["user_id"] = user_id
-        print(session)
 
-        return render_template("register.html")
-        # db.execute("SELECT * FROM users")
-        # db.execute(“INSERT INTO users (username, hash) VALUES (:username, :hash)”, username = request.form.get("username"), hash = generate_password_hash(request.form.get("password"),method="pbkdf2:sha256", salt_length=8))
-        # db.execute("INSERT INTO users (username, hash)  VALUES(:username, :hash)", username=request.form.get("username"), hash=generate_password_hash(request.form.get("password"),method='pbkdf2:sha256', salt_length=8))
+        return render_template("index.html")
+
     elif request.method == "GET":
         return render_template('register.html')
     else:
-        return "Reques type not validflas"
+        return "Request type not valid"
 
-# - query for list of stocks
-# - show list of all stocks and shares
 
-    """Sell shares of stock"""
+"""Sell shares of stock"""
 @app.route("/sell", methods=["GET", "POST"])
 @login_required
 def sell():
-    print('SELL')
+    # print('SELL')
     user_id = session['user_id']
     # get value in assets
     assets = db.execute("SELECT * FROM assets WHERE user_id=(:user_id)", user_id=user_id)
@@ -333,7 +315,7 @@ def sell():
         # input must be a string
         if type(shares_to_sell) != str:
             # FLASH
-            print("Error: Input is invalid or empty")
+            # print("Error: Input is invalid or empty")
             # rerender sell.html
             return render_template("sell.html", data=assets)
         else:
@@ -344,44 +326,45 @@ def sell():
             sharesData = sharesData[0]['shares']
             # current amount minus ones sehling
             new_shares_amount = sharesData - shares_to_sell
-            print(f"symbol:{symbol}")
-            print(f"shares_to_sell:{shares_to_sell}")
-            print(f"current shares: {sharesData}")
-            print(f"new_shares_amount:{new_shares_amount}")
+            # print(f"symbol:{symbol}")
+            # print(f"shares_to_sell:{shares_to_sell}")
+            # print(f"current shares: {sharesData}")
+            # print(f"new_shares_amount:{new_shares_amount}")
             # lookup share value at API to get price
             look_up = lookup(symbol)
             look_up_price = look_up['price']
-            print(f"price:{look_up_price}")
+            # print(f"price:{look_up_price}")
             # value of sold shares - number sold * price each
             selling_cash = look_up_price * shares_to_sell
-            print(f"selling_cash:{selling_cash}")
             if new_shares_amount < 0:
-                ##FLASH MESSAGE
-                print("Don't have that many shares")
-                return render_template("sell.html", data=assets)
+                # print("Don't have that many shares")
+                return apology("Not enough shares", 400)
             else:
+                # insert trans into purchases table
+                current_purchase_id = purchaseID()
+                current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                db.execute("INSERT INTO purchases (user_id, shares, symbol, purchase_id, value, date, share_value, type) VALUES (:user_id, :shares, :symbol, :purchase_id, :value,:date, :share_value, :type)", user_id=user_id, shares=(shares_to_sell * -1), symbol=symbol,purchase_id=current_purchase_id, value=(selling_cash * -1), date=current_date, share_value=look_up_price, type="sell")
                 # change share number in table
                 db.execute("UPDATE assets SET shares=(:new_shares_amount) WHERE symbol=(:symbol) AND user_id=(:user_id)", new_shares_amount=new_shares_amount, user_id=user_id, symbol=symbol)
                 # change total value - multiply remaining shares * price
                 currentTotal = db.execute("SELECT total FROM assets WHERE  symbol=(:symbol) AND user_id=(:user_id)", user_id=user_id, symbol=symbol)
                 new_total = new_shares_amount * look_up_price
-                print(f"currentTotal:{currentTotal}")
-                print('new_shares_amount * look_up_price = new_total')
-                print(f"new_total: {new_total}")
+                # print(f"currentTotal:{currentTotal}")
+                # print('new_shares_amount * look_up_price = new_total')
+                # print(f"new_total: {new_total}")
                 db.execute("UPDATE assets SET total=(:new_total) WHERE user_id=(:user_id) AND symbol=(:symbol)", new_total=new_total, user_id=user_id, symbol=symbol)
                 # get current cash
                 current_cash = db.execute("SELECT cash FROM users WHERE id=(:user_id)", user_id=user_id)
                 current_cash = current_cash[0]['cash']
-                print(f"current_cash: {current_cash}")
+                # print(f"current_cash: {current_cash}")
                 # perform addition
                 updated_cash = current_cash + selling_cash
-                print(f"updated_cash:{updated_cash}")
+                # print(f"updated_cash:{updated_cash}")
                 # update cash
                 db.execute("UPDATE users SET cash=(:updated_cash) WHERE id=(:user_id)", updated_cash=updated_cash, user_id=user_id)
                 return redirect(url_for("index"))
 
             return render_template("sell.html")
-    return apology("TODO")
 
 
 def errorhandler(e):

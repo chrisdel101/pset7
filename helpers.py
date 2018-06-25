@@ -86,5 +86,8 @@ def lookup(symbol):
 
 
 def usd(value):
-    """Format value as USD."""
-    return f"${value:,.2f}"
+        # need regex to only display if less than one and have more than zeros
+    if value < 1:
+        return f"${value:,.4f}"
+    else:
+        return f"${value:,.2f}"
