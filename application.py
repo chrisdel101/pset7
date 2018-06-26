@@ -141,6 +141,8 @@ def buy():
                         db.execute("INSERT INTO assets (user_id, symbol, shares, total) VALUES (:user_id, :symbol, :shares, :value)", user_id=user_id, shares=shares, symbol=symbol, value=sharesValue)
                         # update user cash after purchase
                         db.execute("UPDATE users SET cash=(:cash) WHERE id=(:user_id)", cash=cash_after_shares,user_id=user_id)
+                        # flash on success
+                        flash("New stock added.")
                         # redirect to index
                         return redirect(url_for("index"))
                     else:
@@ -161,8 +163,9 @@ def buy():
                         db.execute("UPDATE assets SET shares=(:shares), total=(:total) WHERE symbol=(:symbol) AND user_id=(:user_id)", shares=newShares, total=newTotal, symbol=symbol, user_id=user_id)
                         # UPDATE user cash after purchase
                         db.execute("UPDATE users SET cash=(:cash) WHERE id=(:user_id)", cash=cash_after_shares,user_id=user_id)
-                        # redirect to index
                         # FLASH
+                        flash("New stocks added, or combined with others of the same type.")
+                        # redirect to index
                         return redirect(url_for("index"))
                 # purchase not approved
                 else:
@@ -312,58 +315,59 @@ def sell():
         # print(f"symbol:{symbol}")
         # print(f"shares_to_sell:{shares_to_sell}")
         # input must be a string
-        if type(shares_to_sell) != str:
-            # FLASH
-            # print("Error: Input is invalid or empty")
-            # rerender sell.html
-            return render_template("sell.html", data=assets)
-        else:
-            # convert to int
+        # if type(shares_to_sell) != str:
+        try:
+        # convert to int
             shares_to_sell = int(shares_to_sell)
-            # get shares cuurent in table
-            sharesData = db.execute("SELECT shares FROM assets WHERE symbol=(:symbol) AND user_id=(:user_id)", user_id=user_id, symbol=symbol)
-            sharesData = sharesData[0]['shares']
-            # current amount minus ones sehling
-            new_shares_amount = sharesData - shares_to_sell
-            # print(f"symbol:{symbol}")
-            # print(f"shares_to_sell:{shares_to_sell}")
-            # print(f"current shares: {sharesData}")
-            # print(f"new_shares_amount:{new_shares_amount}")
-            # lookup share value at API to get price
-            look_up = lookup(symbol)
-            look_up_price = look_up['price']
-            # print(f"price:{look_up_price}")
-            # value of sold shares - number sold * price each
-            selling_cash = look_up_price * shares_to_sell
-            if new_shares_amount < 0:
-                # print("Don't have that many shares")
-                return apology("Not enough shares", 400)
-            else:
-                # insert trans into purchases table
-                current_purchase_id = purchaseID()
-                current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                db.execute("INSERT INTO purchases (user_id, shares, symbol, purchase_id, value, date, share_value, type) VALUES (:user_id, :shares, :symbol, :purchase_id, :value,:date, :share_value, :type)", user_id=user_id, shares=(shares_to_sell * -1), symbol=symbol,purchase_id=current_purchase_id, value=(selling_cash * -1), date=current_date, share_value=look_up_price, type="sell")
-                # change share number in table
-                db.execute("UPDATE assets SET shares=(:new_shares_amount) WHERE symbol=(:symbol) AND user_id=(:user_id)", new_shares_amount=new_shares_amount, user_id=user_id, symbol=symbol)
-                # change total value - multiply remaining shares * price
-                currentTotal = db.execute("SELECT total FROM assets WHERE  symbol=(:symbol) AND user_id=(:user_id)", user_id=user_id, symbol=symbol)
-                new_total = new_shares_amount * look_up_price
-                # print(f"currentTotal:{currentTotal}")
-                # print('new_shares_amount * look_up_price = new_total')
-                # print(f"new_total: {new_total}")
-                db.execute("UPDATE assets SET total=(:new_total) WHERE user_id=(:user_id) AND symbol=(:symbol)", new_total=new_total, user_id=user_id, symbol=symbol)
-                # get current cash
-                current_cash = db.execute("SELECT cash FROM users WHERE id=(:user_id)", user_id=user_id)
-                current_cash = current_cash[0]['cash']
-                # print(f"current_cash: {current_cash}")
-                # perform addition
-                updated_cash = current_cash + selling_cash
-                # print(f"updated_cash:{updated_cash}")
-                # update cash
-                db.execute("UPDATE users SET cash=(:updated_cash) WHERE id=(:user_id)", updated_cash=updated_cash, user_id=user_id)
-                return redirect(url_for("index"))
+        except ValueError:
+            flash("Error: Input is invalid or empty")
+            return render_template("sell.html", data=assets)
 
-            return render_template("sell.html")
+        # get shares cuurent in table
+        sharesData = db.execute("SELECT shares FROM assets WHERE symbol=(:symbol) AND user_id=(:user_id)", user_id=user_id, symbol=symbol)
+        sharesData = sharesData[0]['shares']
+        # current amount minus ones sehling
+        new_shares_amount = sharesData - shares_to_sell
+        # print(f"symbol:{symbol}")
+        # print(f"shares_to_sell:{shares_to_sell}")
+        # print(f"current shares: {sharesData}")
+        # print(f"new_shares_amount:{new_shares_amount}")
+        # lookup share value at API to get price
+        look_up = lookup(symbol)
+        look_up_price = look_up['price']
+        # print(f"price:{look_up_price}")
+        # value of sold shares - number sold * price each
+        selling_cash = look_up_price * shares_to_sell
+        if new_shares_amount < 0:
+            # print("Don't have that many shares")
+            return apology("Not enough shares", 400)
+        else:
+            # insert trans into purchases table
+            current_purchase_id = purchaseID()
+            current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            db.execute("INSERT INTO purchases (user_id, shares, symbol, purchase_id, value, date, share_value, type) VALUES (:user_id, :shares, :symbol, :purchase_id, :value,:date, :share_value, :type)", user_id=user_id, shares=(shares_to_sell * -1), symbol=symbol,purchase_id=current_purchase_id, value=(selling_cash * -1), date=current_date, share_value=look_up_price, type="sell")
+            # change share number in table
+            db.execute("UPDATE assets SET shares=(:new_shares_amount) WHERE symbol=(:symbol) AND user_id=(:user_id)", new_shares_amount=new_shares_amount, user_id=user_id, symbol=symbol)
+            # change total value - multiply remaining shares * price
+            currentTotal = db.execute("SELECT total FROM assets WHERE  symbol=(:symbol) AND user_id=(:user_id)", user_id=user_id, symbol=symbol)
+            new_total = new_shares_amount * look_up_price
+            # print(f"currentTotal:{currentTotal}")
+            # print('new_shares_amount * look_up_price = new_total')
+            # print(f"new_total: {new_total}")
+            db.execute("UPDATE assets SET total=(:new_total) WHERE user_id=(:user_id) AND symbol=(:symbol)", new_total=new_total, user_id=user_id, symbol=symbol)
+            # get current cash
+            current_cash = db.execute("SELECT cash FROM users WHERE id=(:user_id)", user_id=user_id)
+            current_cash = current_cash[0]['cash']
+            # print(f"current_cash: {current_cash}")
+            # perform addition
+            updated_cash = current_cash + selling_cash
+            # print(f"updated_cash:{updated_cash}")
+            # update cash
+            db.execute("UPDATE users SET cash=(:updated_cash) WHERE id=(:user_id)", updated_cash=updated_cash, user_id=user_id)
+            flash("Stocks sold")
+            return redirect(url_for("index"))
+
+        return render_template("sell.html")
 
 
 def errorhandler(e):
