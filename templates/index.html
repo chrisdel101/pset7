@@ -4,6 +4,14 @@
     Log In
 {% endblock %}
 
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    {% for message in messsages %}
+      <p> {{ message }}</p>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
 {% block main %}
 <main class="index-page">
   <div class="container">
