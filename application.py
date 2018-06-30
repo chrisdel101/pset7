@@ -5,6 +5,7 @@ import re
 
 from cs50 import SQL
 from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask_mail import Mail, Message
 from flask_session import Session
 from tempfile import mkdtemp
 from werkzeug.exceptions import default_exceptions
@@ -23,6 +24,20 @@ app = Flask(__name__)
 
 # Ensure templates are auto-reloaded
 app.config["TEMPLATES_AUTO_RELOAD"] = True
+# app.config.from_envar('APP_SETTINGS')
+app.config.from_object(__name__)
+app.config.from_pyfile("flask.cfg")
+
+print(app.config['MAIL_SERVER'])
+app.config.update(
+    MAIL_SERVER='smtp.gmail.com',
+    MAIL_PORT=465,
+    MAIL_USE_SSL=True,
+    MAIL_USERNAME = 'mote2zart@gmail.com',
+    MAIL_PASSWORD = 'udykkvxnfuwvuxoz'
+)
+
+
 
 # Ensure responses aren't cached
 @app.after_request
@@ -42,8 +57,29 @@ app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
+mail = Mail(app)
+
 # Configure CS50 Library to use SQLite database
 db = SQL("sqlite:///finance.db")
+
+
+@app.route("/contact", methods=['GET', 'POST'])
+def contact():
+    # form = ContactForm()
+    if request.method == 'GET':
+        # g = mail.send_message(
+        #   'Send Mail tutorial!',
+        #   sender="mote2zart@gmail.com",
+        #   recipients=['arssonist@yahoo.com'],
+        #   body="Congratulations you've succeeded!"
+
+        msg = Message("Hello",
+                  sender="mote2zart@gmail.com",
+                  recipients=['arssonist@yahoo.com'])
+        msg.body = "testing"
+        msg.html = "<b>testing</b>"
+        mail.send(msg)
+        return 'Mail sent'
 
 
 """Show portfolio of stocks"""
@@ -378,9 +414,10 @@ def sell():
 
 def errorhandler(e):
     """Handle error"""
-    return apology(e.name, e.code)
+    return apology(e)
 
 
 # listen for errors
 for code in default_exceptions:
     app.errorhandler(code)(errorhandler)
+
