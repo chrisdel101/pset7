@@ -28,16 +28,19 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.config.from_object(__name__)
 app.config.from_pyfile("flask.cfg")
 
-print(app.config['MAIL_SERVER'])
+app.config['MAIL_SERVER']
 app.config.update(
-    MAIL_SERVER='smtp.gmail.com',
-    MAIL_PORT=465,
-    MAIL_USE_SSL=True,
-    MAIL_USERNAME = 'mote2zart@gmail.com',
-    MAIL_PASSWORD = 'udykkvxnfuwvuxoz'
+    MAIL_SERVER=app.config['MAIL_SERVER'],
+    MAIL_PORT=app.config['MAIL_PORT'],
+    MAIL_USE_SSL=app.config['MAIL_USE_SSL'],
+    MAIL_USERNAME=app.config['MAIL_USERNAME'],
+    MAIL_PASSWORD = app.config['MAIL_PASSWORD']
 )
-
-
+print(app.config['MAIL_SERVER'])
+print(app.config['MAIL_PORT'])
+print(app.config['MAIL_USE_SSL'])
+print(app.config['MAIL_USERNAME'])
+print(app.config['MAIL_PASSWORD'])
 
 # Ensure responses aren't cached
 @app.after_request
@@ -63,23 +66,30 @@ mail = Mail(app)
 db = SQL("sqlite:///finance.db")
 
 
-@app.route("/contact", methods=['GET', 'POST'])
+@app.route("/reset", methods=['GET', 'POST'])
 def contact():
     # form = ContactForm()
     if request.method == 'GET':
-        # g = mail.send_message(
-        #   'Send Mail tutorial!',
-        #   sender="mote2zart@gmail.com",
-        #   recipients=['arssonist@yahoo.com'],
-        #   body="Congratulations you've succeeded!"
-
-        msg = Message("Hello",
-                  sender="mote2zart@gmail.com",
-                  recipients=['arssonist@yahoo.com'])
-        msg.body = "testing"
-        msg.html = "<b>testing</b>"
-        mail.send(msg)
-        return 'Mail sent'
+        return render_template('reset.html')
+    elif request.method == 'POST':
+        if not request.form.get("email"):
+            return apology("must provide email", 400)
+        # else:
+        #     # get email from form
+        email = request.form.get("email")
+    #     # check DB for email
+        email_check = db.execute("SELECT email FROM users WHERE email=(:email)", email=email)
+        print(email_check)
+        if email_check != [] and email_check != None:
+            print('inside')
+            msg = Message("This is an automated email for resetting your password",
+                      sender=app.config['MAIL_USERNAME'],
+                      recipients=[email])
+            msg.body = "Click on the link to reset your password."
+            msg.html = "<b>testing</b>"
+            mail.send(msg)
+            flash("email sent")
+        return render_template("reset.html")
 
 
 """Show portfolio of stocks"""
