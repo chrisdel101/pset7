@@ -10,7 +10,7 @@ from flask_session import Session
 from tempfile import mkdtemp
 from werkzeug.exceptions import default_exceptions
 from werkzeug.security import check_password_hash, generate_password_hash
-
+from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 from helpers import apology, login_required, lookup, usd
 
 TEMPLATES_AUTO_RELOAD = True
@@ -21,14 +21,11 @@ if not os.environ.get("API_KEY"):
 
 # Configure application
 app = Flask(__name__)
-
 # Ensure templates are auto-reloaded
 app.config["TEMPLATES_AUTO_RELOAD"] = True
-# app.config.from_envar('APP_SETTINGS')
-app.config.from_object(__name__)
+# app.config.from_object(__name__)
 app.config.from_pyfile("flask.cfg")
 
-app.config['MAIL_SERVER']
 app.config.update(
     MAIL_SERVER=app.config['MAIL_SERVER'],
     MAIL_PORT=app.config['MAIL_PORT'],
@@ -36,12 +33,6 @@ app.config.update(
     MAIL_USERNAME=app.config['MAIL_USERNAME'],
     MAIL_PASSWORD = app.config['MAIL_PASSWORD']
 )
-print(app.config['MAIL_SERVER'])
-print(app.config['MAIL_PORT'])
-print(app.config['MAIL_USE_SSL'])
-print(app.config['MAIL_USERNAME'])
-print(app.config['MAIL_PASSWORD'])
-
 # Ensure responses aren't cached
 @app.after_request
 def after_request(response):
@@ -65,12 +56,27 @@ mail = Mail(app)
 # Configure CS50 Library to use SQLite database
 db = SQL("sqlite:///finance.db")
 
+def get_reset_token(user_id, expires_sec=1800):
+    s = Serializer(app.config['SECRET_KEY'], expires_sec)
+    return s.dumps({'user_id': user_id}).decode('utf-8')
 
-@app.route("/reset", methods=['GET', 'POST'])
-def contact():
+def verify_reset_token(token):
+    print(f"token:{token}")
+    s = Serializer(app.config['SECRET_KEY'])
+    print(f"s:{s}")
+    try:
+        user_id = s.loads(token)['user_id']
+        user_id = user_id[0]['id']
+        print(f"user_id:{user_id}")
+    except:
+        return None
+    return db.execute("SELECT id from USERS where id=(:user_id)", user_id=user_id)
+
+@app.route("/reset_password", methods=['GET', 'POST'])
+def reset_request():
     # form = ContactForm()
     if request.method == 'GET':
-        return render_template('reset.html')
+        return render_template('reset_password.html')
     elif request.method == 'POST':
         if not request.form.get("email"):
             return apology("must provide email", 400)
@@ -79,18 +85,61 @@ def contact():
         email = request.form.get("email")
     #     # check DB for email
         email_check = db.execute("SELECT email FROM users WHERE email=(:email)", email=email)
-        print(email_check)
+        print(f"email_check: {email_check}")
+        user_id = db.execute("SELECT id FROM users WHERE email=(:email)", email=email)
+        token = get_reset_token(user_id)
         if email_check != [] and email_check != None:
-            print('inside')
+            verify = verify_reset_token(token)
+            # print(f"verify: {verify}")
             msg = Message("This is an automated email for resetting your password",
                       sender=app.config['MAIL_USERNAME'],
                       recipients=[email])
-            msg.body = "Click on the link to reset your password."
-            msg.html = "<b>testing</b>"
+            msg.body = f'''Click on the link to reset your password.
+{url_for('reset_token', token=token, _external=True)}
+
+If you did not request this email, ignore it.
+'''
+            # msg.html = "<si"
             mail.send(msg)
             flash("email sent")
-        return render_template("reset.html")
+            return render_template("reset_password.html")
 
+@app.route("/password_reset/<token>", methods=['GET', 'POST'])
+def reset_token(token):
+    # call verify token- return user
+    user = verify_reset_token(token)
+    print(user)
+    user_id = user[0]['id']
+    if request.method == 'GET':
+        if not user:
+            flash("That is an invalid/Expired token.", 'error')
+            return render_template("reset_password.html")
+            # return redirect(url_for("reset_password"))
+            # return redirect(url_for("index"))
+        return render_template("password_token.html", token=token)
+    elif request.method == 'POST':
+        if not request.form.get("password"):
+            return apology("must provide new password", 400)
+        elif not request.form.get("password"):
+            return apology("must provide confrimation password", 400)
+        elif request.form.get("password") != request.form.get("confirmation"):
+            return apology("new passwords must match", 400)
+        else:
+            # try:
+            #  # # generate new password hash
+            hash = generate_password_hash(request.form.get("password"), method='pbkdf2:sha256', salt_length=8)
+            print(hash)
+            db.execute("UPDATE users SET hash=(:hash) WHERE id=(:user_id)", hash=hash, user_id=user_id)
+            # except:
+            #     raise ValueError ("An error occured on hash entry")
+            flash("Password changed")
+            return render_template("login.html")
+        # db.execute("INSERT INTO users (email,hash) VALUES (:email, :hash)", email=email, hash=hash)
+        # user_id = db.execute("SELECT id FROM users WHERE email=(:email)", email=email)
+        # session["user_id"] = user_id
+        # flash("You are registed.")
+        # return render_template("index.html")
+        #  db.execute("UPDATE users SET cash=(:cash) WHERE id=(:user_id)", cash=cash_after_shares,user_id=user_id)
 
 """Show portfolio of stocks"""
 @app.route("/")
@@ -424,7 +473,8 @@ def sell():
 
 def errorhandler(e):
     """Handle error"""
-    return apology(e)
+    print(e)
+    return
 
 
 # listen for errors
